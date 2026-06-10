@@ -124,6 +124,24 @@ jobs:
         with open(os.path.join(values_dir, 'ai_fallback_generated.xml'), 'w', encoding='utf-8') as f:
             f.write(fallback)
 
+    - name: Strip Missing Key Requirements For Unsigned Release
+      shell: python
+      run: |
+        import os
+        for root, dirs, files in os.walk('.'):
+            for file in files:
+                if file in ['build.gradle', 'build.gradle.kts'] and 'app' in root:
+                    target_path = os.path.join(root, file)
+                    print(f"Modifying {target_path} to remove strict signing locks...")
+                    with open(target_path, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                    with open(target_path, 'w', encoding='utf-8') as f:
+                        for line in lines:
+                            if 'signingConfig' in line or 'storeFile' in line:
+                                f.write(f"// {line}")
+                            else:
+                                f.write(line)
+
     - name: Setup Gradle Official Automation
       uses: gradle/actions/setup-gradle@v4
 
@@ -136,20 +154,19 @@ jobs:
         gradle wrapper --gradle-version 9.3.1
         chmod +x gradlew
 
-    - name: Build Debug APK and AAB
+    - name: Build Official Release APK and AAB
       run: |
-        # BYPASS THE SIGNING KEYS BY BUILDING FOR DEBUG/TESTING
-        ./gradlew assembleDebug --stacktrace --no-daemon
-        ./gradlew bundleDebug --stacktrace --no-daemon
+        ./gradlew assembleRelease --stacktrace --no-daemon
+        ./gradlew bundleRelease --stacktrace --no-daemon
 
-    - name: Upload APK
+    - name: Upload Release APK
       uses: actions/upload-artifact@v4
       with:
-        name: QuickServices-APK
-        path: "**/build/outputs/apk/debug/*.apk"
+        name: QuickServices-Release-APK
+        path: "**/build/outputs/apk/release/*.apk"
 
-    - name: Upload AAB
+    - name: Upload Release AAB
       uses: actions/upload-artifact@v4
       with:
-        name: QuickServices-AAB
-        path: "**/build/outputs/bundle/debug/*.aab"
+        name: QuickServices-Release-AAB
+        path: "**/build/outputs/bundle/release/*.aab"
