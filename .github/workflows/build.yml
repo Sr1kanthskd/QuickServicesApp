@@ -11,71 +11,22 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Clone Clean Android Template
+      run: |
+        # Download a verified native Android boilerplate template setup
+        git clone https://github.com/android/architecture-templates.git temp_template
+        # Move the inner starter configuration out to root
+        cp -r temp_template/v2-starter/* . || cp -r temp_template/* . || true
+        rm -rf temp_template
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: gradle
 
-    - name: Generate Missing Android Project Structure
-      run: |
-        echo "=== Creating Android Project Templates ==="
-        # Create a fresh Android gradle project structure
-        mkdir -p app/src/main/java/com/quickservices/app
-        mkdir -p app/src/main/res/layout
-        mkdir -p app/src/main/res/values
-        mkdir -p gradle/wrapper
-
-        # Generate standard root settings.gradle
-        echo "pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }" > settings.gradle
-        echo "dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }" >> settings.gradle
-        echo "rootProject.name = 'QuickServicesApp'" >> settings.gradle
-        echo "include ':app'" >> settings.gradle
-
-        # Generate standard root build.gradle
-        echo "buildscript { dependencies { classpath 'com.android.tools.build:gradle:8.1.1' } }" > build.gradle
-        echo "plugins { id 'com.android.application' version '8.1.1' apply false; id 'com.android.library' version '8.1.1' apply false; id 'org.jetbrains.kotlin.android' version '1.8.20' apply false }" >> build.gradle
-
-        # Generate app-level build.gradle
-        cat << 'EOF' > app/build.gradle
-        plugins {
-            id 'com.android.application'
-            id 'org.jetbrains.kotlin.android'
-        }
-        android {
-            namespace 'com.quickservices.app'
-            compileSdk 34
-            defaultConfig {
-                applicationId "com.quickservices.app"
-                minSdk 24
-                targetSdk 34
-                versionCode 1
-                versionName "1.0"
-            }
-            buildTypes {
-                release {
-                    minifyEnabled false
-                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                }
-            }
-        }
-        dependencies {
-            implementation 'androidx.core:core-ktx:1.12.0'
-            implementation 'androidx.appcompat:appcompat:1.6.1'
-            implementation 'com.google.android.material:material:1.10.0'
-            implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-            implementation 'com.google.android.gms:play-services-ads:22.6.0'
-            implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
-        }
-        EOF
-
-        # Install standard Gradle Wrapper wrapper files
-        wget https://raw.githubusercontent.com/gradle/gradle/v8.1.1/gradlew
-        chmod +x gradlew
-        wget -P gradle/wrapper https://raw.githubusercontent.com/gradle/gradle/v8.1.1/gradle/wrapper/gradle-wrapper.properties
-        wget -P gradle/wrapper https://raw.githubusercontent.com/gradle/gradle/v8.1.1/gradle/wrapper/gradle-wrapper.jar
-
-    - name: Unzip and Inject AI Code Files
+    - name: Inject AI Code Files
       shell: python
       run: |
         import zipfile
@@ -84,7 +35,7 @@ jobs:
 
         zip_files = [f for f in os.listdir('.') if f.endswith('.zip')]
         if not zip_files:
-            print("No zip file found, relying on generated workspace template.")
+            print("Zip file not detected in root.")
             exit(0)
         
         zip_name = zip_files[0]
@@ -93,27 +44,30 @@ jobs:
         with zipfile.ZipFile(zip_name, 'r') as zip_ref:
             zip_ref.extractall(temp_extract_dir)
 
-        # Look through extracted zip to find source files and drop them in correct spots
+        # Map and override layout/source paths inside the template folder structure
         for root, dirs, files in os.walk(temp_extract_dir):
             for file in files:
                 full_path = os.path.join(root, file)
                 
-                # Relocate layouts
                 if file.endswith('.xml') and 'layout' in root:
+                    os.makedirs('app/src/main/res/layout', exist_ok=True)
                     shutil.copy(full_path, os.path.join('app', 'src', 'main', 'res', 'layout', file))
-                # Relocate Kotlin source files
                 elif file.endswith('.kt'):
+                    os.makedirs('app/src/main/java/com/quickservices/app', exist_ok=True)
                     shutil.copy(full_path, os.path.join('app', 'src', 'main', 'java', 'com', 'quickservices', 'app', file))
-                # Relocate AndroidManifest
                 elif file == 'AndroidManifest.xml':
+                    os.makedirs('app/src/main', exist_ok=True)
                     shutil.copy(full_path, os.path.join('app', 'src', 'main', 'AndroidManifest.xml'))
-                # Relocate value configs (strings, colors etc)
                 elif file.endswith('.xml') and 'values' in root:
+                    os.makedirs('app/src/main/res/values', exist_ok=True)
                     shutil.copy(full_path, os.path.join('app', 'src', 'main', 'res', 'values', file))
 
         shutil.rmtree(temp_extract_dir)
         os.remove(zip_name)
-        print("AI Code successfully mapped into Android Template project!")
+        print("Code successfully injected into architecture boilerplate!")
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
 
     - name: Build APK and AAB
       run: |
@@ -124,11 +78,11 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: QuickServices-APK
-        path: "app/build/outputs/apk/release/*-unsigned.apk"
+        path: "**/build/outputs/apk/release/*-unsigned.apk"
 
     - name: Upload AAB
       uses: actions/upload-artifact@v4
       with:
         name: QuickServices-AAB
-        path: "app/build/outputs/bundle/release/*.aab"
+        path: "**/build/outputs/bundle/release/*.aab"
         
