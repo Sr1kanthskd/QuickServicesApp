@@ -6,6 +6,7 @@ on:
 
 env:
   JAVA_TOOL_OPTIONS: "-Djava.awt.headless=true"
+  GRADLE_OPTS: "-Djava.awt.headless=true"
 
 jobs:
   build:
@@ -126,12 +127,16 @@ jobs:
     - name: Setup Gradle Official Automation
       uses: gradle/actions/setup-gradle@v4
 
-    - name: Force Build Wrapper Creation
+    - name: Configure Headless Build & Generate Wrapper
       run: |
-        # UPGRADE DIRECTLY TO 9.3.1 TO MATCH AI STUDIO'S CODE REQUIREMENTS
+        # 1. WRITE HEADLESS RULES FIRST SO THE DAEMON DOES NOT CRASH
+        echo "org.gradle.jvmargs=-Xmx3200m -Djava.awt.headless=true" >> gradle.properties
+        echo "kotlin.daemon.jvmargs=-Xmx2048m -Djava.awt.headless=true" >> gradle.properties
+        echo "kotlin.compiler.execution.strategy=in-process" >> gradle.properties
+        
+        # 2. GENERATE THE WRAPPER WITH THE CORRECT VERSION REQUIRED BY AI
         gradle wrapper --gradle-version 9.3.1
         chmod +x gradlew
-        echo "kotlin.compiler.execution.strategy=in-process" >> gradle.properties
 
     - name: Build APK and AAB
       run: |
