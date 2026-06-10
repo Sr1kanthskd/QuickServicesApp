@@ -129,28 +129,27 @@ jobs:
 
     - name: Configure Headless Build & Generate Wrapper
       run: |
-        # 1. WRITE HEADLESS RULES FIRST SO THE DAEMON DOES NOT CRASH
         echo "org.gradle.jvmargs=-Xmx3200m -Djava.awt.headless=true" >> gradle.properties
         echo "kotlin.daemon.jvmargs=-Xmx2048m -Djava.awt.headless=true" >> gradle.properties
         echo "kotlin.compiler.execution.strategy=in-process" >> gradle.properties
         
-        # 2. GENERATE THE WRAPPER WITH THE CORRECT VERSION REQUIRED BY AI
         gradle wrapper --gradle-version 9.3.1
         chmod +x gradlew
 
-    - name: Build APK and AAB
+    - name: Build Debug APK and AAB
       run: |
-        ./gradlew assembleRelease --stacktrace --no-daemon
-        ./gradlew bundleRelease --stacktrace --no-daemon
+        # BYPASS THE SIGNING KEYS BY BUILDING FOR DEBUG/TESTING
+        ./gradlew assembleDebug --stacktrace --no-daemon
+        ./gradlew bundleDebug --stacktrace --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: QuickServices-APK
-        path: "**/build/outputs/apk/release/*-unsigned.apk"
+        path: "**/build/outputs/apk/debug/*.apk"
 
     - name: Upload AAB
       uses: actions/upload-artifact@v4
       with:
         name: QuickServices-AAB
-        path: "**/build/outputs/bundle/release/*.aab"
+        path: "**/build/outputs/bundle/debug/*.aab"
