@@ -129,8 +129,8 @@ jobs:
 
     - name: Force Build Wrapper Creation
       run: |
-        # Explicitly build the missing script file before triggering execution pass
-        gradle wrapper
+        # FORCE THE SERVER TO USE ANDROID-COMPATIBLE GRADLE 8.7
+        gradle wrapper --gradle-version 8.7
         chmod +x gradlew
         echo "kotlin.compiler.execution.strategy=in-process" >> gradle.properties
 
@@ -150,4 +150,3 @@ jobs:
       with:
         name: QuickServices-AAB
         path: "**/build/outputs/bundle/release/*.aab"
-        
