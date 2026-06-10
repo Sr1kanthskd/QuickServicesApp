@@ -4,7 +4,6 @@ on:
   push:
     branches: [ "main" ]
 
-# This forces EVERY background Java process to run strictly headless
 env:
   JAVA_TOOL_OPTIONS: "-Djava.awt.headless=true"
 
@@ -56,6 +55,7 @@ jobs:
 
         shutil.rmtree(temp_dir)
         os.remove(zip_name)
+        print("Extraction complete!")
 
     - name: Apply Custom App Icon Safely
       run: |
@@ -126,16 +126,16 @@ jobs:
 
     - name: Setup Gradle Official Automation
       uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: wrapper
+
+    - name: Force Build Wrapper Creation
+      run: |
+        # Explicitly build the missing script file before triggering execution pass
+        gradle wrapper
+        chmod +x gradlew
+        echo "kotlin.compiler.execution.strategy=in-process" >> gradle.properties
 
     - name: Build APK and AAB
       run: |
-        chmod +x gradlew || true
-        
-        # Inject system settings to force Kotlin compilation to run in-process
-        echo "kotlin.compiler.execution.strategy=in-process" >> gradle.properties
-        
         ./gradlew assembleRelease --stacktrace --no-daemon
         ./gradlew bundleRelease --stacktrace --no-daemon
 
