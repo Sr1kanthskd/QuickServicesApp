@@ -137,7 +137,8 @@ jobs:
                         lines = f.readlines()
                     with open(target_path, 'w', encoding='utf-8') as f:
                         for line in lines:
-                            if 'signingConfig' in line or 'storeFile' in line:
+                            # Strict full-word matching prevents breaking the 'signingConfigs {' structural blocks
+                            if 'signingConfig =' in line or 'storeFile =' in line or 'signingConfig.set' in line:
                                 f.write(f"// {line}")
                             else:
                                 f.write(line)
