@@ -16,7 +16,6 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        # Cache removed so it stops crashing!
 
     - name: Unzip and Flatten Project
       shell: python
@@ -35,7 +34,6 @@ jobs:
         with zipfile.ZipFile(zip_name, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
 
-        # Find the actual folder containing the Android project
         target_source = temp_dir
         for root, dirs, files in os.walk(temp_dir):
             if 'build.gradle' in files or 'build.gradle.kts' in files:
@@ -56,9 +54,31 @@ jobs:
         os.remove(zip_name)
         print("Extraction complete!")
 
+    - name: Apply Custom App Icon
+      run: |
+        echo "=== Searching for your icon.png ==="
+        # Find exactly where your custom icon is hiding
+        ICON_PATH=$(find . -name "icon.png" | head -n 1)
+
+        if [ -n "$ICON_PATH" ]; then
+          echo "Found your custom icon at $ICON_PATH!"
+          
+          # Delete all the broken, corrupted default icons
+          find app/src/main/res -name "ic_launcher*.png" -delete
+          find app/src/main/res -name "ic_launcher*.xml" -delete
+          
+          # Copy your custom icon into all the required Android folders
+          find app/src/main/res -type d -name "mipmap-*" | while read dir; do
+            cp "$ICON_PATH" "$dir/ic_launcher.png"
+            cp "$ICON_PATH" "$dir/ic_launcher_round.png"
+          done
+          echo "Custom icon applied successfully!"
+        else
+          echo "Error: icon.png not found! The build might fail if defaults are corrupt."
+        fi
+
     - name: Generate Missing Gradle Wrapper
       run: |
-        # If AI Studio forgot the gradlew file, generate a fresh one natively!
         if [ ! -f "gradlew" ]; then
           echo "gradlew not found. Generating a new one..."
           gradle wrapper
