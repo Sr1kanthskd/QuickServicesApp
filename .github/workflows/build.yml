@@ -4,9 +4,14 @@ on:
   push:
     branches: [ "main" ]
 
+# This forces EVERY background Java process to run strictly headless
+env:
+  JAVA_TOOL_OPTIONS: "-Djava.awt.headless=true"
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v4
@@ -56,7 +61,6 @@ jobs:
       run: |
         ICON_PATH=$(find . -name "icon.png" | head -n 1)
         if [ -n "$ICON_PATH" ]; then
-          # Force create the specific image folders so they are NEVER missing
           for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
             mkdir -p "app/src/main/res/mipmap-$density"
             cp "$ICON_PATH" "app/src/main/res/mipmap-$density/ic_launcher.png"
@@ -110,7 +114,7 @@ jobs:
             if c == 'transparent':
                 fallback += f'    <color name="{c}">#00000000</color>\n'
             else:
-                fallback += f'    <color name="{c}">#FF000000</color>\n' # Default to black
+                fallback += f'    <color name="{c}">#FF000000</color>\n'
                 
         for st in (found_styles - existing_names):
             fallback += f'    <style name="{st}" parent="Theme.AppCompat.Light.NoActionBar"></style>\n'
@@ -120,19 +124,20 @@ jobs:
         with open(os.path.join(values_dir, 'ai_fallback_generated.xml'), 'w', encoding='utf-8') as f:
             f.write(fallback)
 
-    - name: Generate Missing Gradle Wrapper & Server Properties
-      run: |
-        if [ ! -f "gradlew" ]; then
-          gradle wrapper
-        fi
-        chmod +x gradlew
-        echo "org.gradle.jvmargs=-Xmx3200m -Dfile.encoding=UTF-8 -Djava.awt.headless=true" >> gradle.properties
-        echo "kotlin.daemon.jvm.options=-Xmx2048m -Djava.awt.headless=true" >> gradle.properties
+    - name: Setup Gradle Official Automation
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: wrapper
 
     - name: Build APK and AAB
       run: |
-        ./gradlew assembleRelease --stacktrace --no-daemon -Djava.awt.headless=true
-        ./gradlew bundleRelease --stacktrace --no-daemon -Djava.awt.headless=true
+        chmod +x gradlew || true
+        
+        # Inject system settings to force Kotlin compilation to run in-process
+        echo "kotlin.compiler.execution.strategy=in-process" >> gradle.properties
+        
+        ./gradlew assembleRelease --stacktrace --no-daemon
+        ./gradlew bundleRelease --stacktrace --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
