@@ -57,27 +57,22 @@ jobs:
     - name: Apply Custom App Icon
       run: |
         echo "=== Searching for your icon.png ==="
-        # Find exactly where your custom icon is hiding
         ICON_PATH=$(find . -name "icon.png" | head -n 1)
 
         if [ -n "$ICON_PATH" ]; then
           echo "Found your custom icon at $ICON_PATH!"
-          
-          # Delete all the broken, corrupted default icons
           find app/src/main/res -name "ic_launcher*.png" -delete
           find app/src/main/res -name "ic_launcher*.xml" -delete
-          
-          # Copy your custom icon into all the required Android folders
           find app/src/main/res -type d -name "mipmap-*" | while read dir; do
             cp "$ICON_PATH" "$dir/ic_launcher.png"
             cp "$ICON_PATH" "$dir/ic_launcher_round.png"
           done
           echo "Custom icon applied successfully!"
         else
-          echo "Error: icon.png not found! The build might fail if defaults are corrupt."
+          echo "Error: icon.png not found!"
         fi
 
-    - name: Generate Missing Gradle Wrapper
+    - name: Generate Missing Gradle Wrapper & Server Properties
       run: |
         if [ ! -f "gradlew" ]; then
           echo "gradlew not found. Generating a new one..."
@@ -85,10 +80,15 @@ jobs:
         fi
         chmod +x gradlew
 
+        # FORCE THE CLOUD SERVER TO RUN IN STRICT HEADLESS MODE
+        echo "org.gradle.jvmargs=-Xmx3200m -Dfile.encoding=UTF-8 -Djava.awt.headless=true" >> gradle.properties
+        echo "kotlin.daemon.jvm.options=-Xmx2048m -Djava.awt.headless=true" >> gradle.properties
+
     - name: Build APK and AAB
       run: |
-        ./gradlew assembleRelease --stacktrace
-        ./gradlew bundleRelease --stacktrace
+        # Pass the headless flag directly to the execution command as a fail-safe
+        ./gradlew assembleRelease --stacktrace --no-daemon -Djava.awt.headless=true
+        ./gradlew bundleRelease --stacktrace --no-daemon -Djava.awt.headless=true
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
