@@ -55,7 +55,6 @@ jobs:
 
         shutil.rmtree(temp_dir)
         os.remove(zip_name)
-        print("Extraction complete!")
 
     - name: Apply Custom App Icon Safely
       run: |
@@ -129,8 +128,8 @@ jobs:
 
     - name: Force Build Wrapper Creation
       run: |
-        # FORCE THE SERVER TO USE ANDROID-COMPATIBLE GRADLE 8.7
-        gradle wrapper --gradle-version 8.7
+        # UPGRADE DIRECTLY TO 9.3.1 TO MATCH AI STUDIO'S CODE REQUIREMENTS
+        gradle wrapper --gradle-version 9.3.1
         chmod +x gradlew
         echo "kotlin.compiler.execution.strategy=in-process" >> gradle.properties
 
